@@ -1,0 +1,1390 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4 Clarke Call Responsiveness & Decline Analytics Portal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PapaParse for CSV fallback parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <!-- SheetJS for Native Excel parsing and compilation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .tab-btn.active {
+            border-color: #4f46e5;
+            color: #4f46e5;
+            background-color: #f5f3ff;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+
+    <!-- Header Panel -->
+    <header class="bg-slate-900 text-white shadow-md border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex flex-col md:flex-row items-start md:items-center justify-between">
+            <div>
+                <span class="bg-emerald-500 text-slate-950 text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Clinical Informatics Portal</span>
+                <h1 class="text-2xl font-extrabold tracking-tight mt-1">4 Clarke - Call Light Responsiveness Analytics</h1>
+                <p class="text-slate-400 text-sm mt-1">Hypothesis Testing: Is CP & RN call-declining driving unit outliers (calls taking &ge; 3 - 5 mins)?</p>
+            </div>
+            <div class="mt-4 md:mt-0 text-left md:text-right">
+                <p class="text-xs text-slate-400 uppercase tracking-widest font-semibold">Evaluation Period</p>
+                <p class="text-sm font-medium text-emerald-400">May 1 - May 31, 2026</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        
+        <!-- Files Status and Upload Panel -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8 transition-all hover:shadow-md">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-slate-900 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Data Integration Pipeline (Excel Support)
+                </h2>
+                <span id="loadStatus" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 animate-pulse">
+                    Waiting for Excel Workbook...
+                </span>
+            </div>
+
+            <!-- Auto Loader Prompt -->
+            <div id="loaderPrompt" class="text-sm text-slate-600 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-indigo-500 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div>
+                        <p class="font-semibold text-slate-800">Ready to accept Excel files directly!</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Please drop your multi-sheet <strong>.xlsx</strong> workbook here. It will automatically match outliers to raw sequences and parse specific staff decline behavior.</p>
+                    </div>
+                </div>
+                <button id="btnAutoLoad" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-700 hover:shadow transition-all flex-shrink-0 flex items-center">
+                    <svg class="w-4 h-4 mr-2 animate-spin hidden" id="spinnerAuto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Autoload Workspace CSVs
+                </button>
+            </div>
+
+            <!-- Primary File Uploader Box -->
+            <div class="bg-slate-50 border-2 border-dashed border-indigo-200 rounded-2xl p-8 flex flex-col items-center justify-center text-center transition-all hover:bg-indigo-50/30">
+                <div class="p-3 bg-indigo-100 text-indigo-600 rounded-full mb-4">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                </div>
+                <h3 class="font-bold text-slate-800 text-base">Drop your .xlsx Excel file here</h3>
+                <p class="text-xs text-slate-500 mt-1 mb-4">Or click to select the master workbook file from your local computer</p>
+                
+                <label class="cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-5 py-3 rounded-xl shadow-sm transition-all">
+                    Select .xlsx Workbook
+                    <input type="file" id="fileMasterExcel" accept=".xlsx, .xls" class="hidden">
+                </label>
+                <div id="masterExcelStatus" class="text-xs text-slate-500 font-medium mt-3 hidden"></div>
+            </div>
+
+            <!-- CSV Backup Section -->
+            <details class="mt-4 group border border-slate-100 rounded-xl">
+                <summary class="list-none flex items-center justify-between p-3 bg-slate-50 rounded-xl cursor-pointer text-xs font-semibold text-slate-600">
+                    <span>Alternative: Need to upload separate CSV files?</span>
+                    <span class="transition-transform group-open:rotate-180">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </span>
+                </summary>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border-t border-slate-100 bg-white">
+                    <div class="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-lg text-center">
+                        <span class="text-[10px] font-bold text-slate-500 mb-2 uppercase">May 1-31 Raw Logs</span>
+                        <label class="cursor-pointer bg-white hover:bg-slate-100 text-slate-700 font-medium text-[11px] px-3 py-1.5 rounded border border-slate-300 transition-colors">
+                            Upload Sheet 1
+                            <input type="file" id="fileSheet1" accept=".csv" class="hidden">
+                        </label>
+                        <span id="labelSheet1" class="text-[9px] text-slate-400 mt-2 truncate max-w-[150px]">No file</span>
+                    </div>
+                    <div class="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-lg text-center">
+                        <span class="text-[10px] font-bold text-slate-500 mb-2 uppercase">3-5 Min Outliers</span>
+                        <label class="cursor-pointer bg-white hover:bg-slate-100 text-slate-700 font-medium text-[11px] px-3 py-1.5 rounded border border-slate-300 transition-colors">
+                            Upload Sheet 2
+                            <input type="file" id="fileSheet2" accept=".csv" class="hidden">
+                        </label>
+                        <span id="labelSheet2" class="text-[9px] text-slate-400 mt-2 truncate max-w-[150px]">No file</span>
+                    </div>
+                    <div class="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-lg text-center">
+                        <span class="text-[10px] font-bold text-slate-500 mb-2 uppercase">>5 Min Outliers</span>
+                        <label class="cursor-pointer bg-white hover:bg-slate-100 text-slate-700 font-medium text-[11px] px-3 py-1.5 rounded border border-slate-300 transition-colors">
+                            Upload Sheet 3
+                            <input type="file" id="fileSheet3" accept=".csv" class="hidden">
+                        </label>
+                        <span id="labelSheet3" class="text-[9px] text-slate-400 mt-2 truncate max-w-[150px]">No file</span>
+                    </div>
+                </div>
+            </details>
+        </section>
+
+        <!-- Main Dashboard View (Initially Hidden till load) -->
+        <div id="dashboardView" class="hidden space-y-8">
+            
+            <!-- Hypothesis Verdict Banner -->
+            <div class="bg-gradient-to-r from-indigo-900 to-slate-900 text-white rounded-2xl shadow-lg p-6 md:p-8 flex flex-col md:flex-row items-center justify-between border border-slate-800">
+                <div class="mb-6 md:mb-0 md:max-w-3xl">
+                    <div class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mb-3">
+                        Scientific Hypothesis Audit
+                    </div>
+                    <h3 class="text-xl md:text-2xl font-bold tracking-tight">Clinical Staff Responsiveness Verdict:</h3>
+                    <p class="text-slate-300 mt-2 text-sm md:text-base leading-relaxed" id="hypothesisText">
+                        Analyzing core patterns...
+                    </p>
+                </div>
+                <div class="flex-shrink-0 flex flex-col items-center justify-center bg-slate-800/80 rounded-xl p-4 border border-slate-700 w-full md:w-56 text-center">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Decline Involvement</span>
+                    <span id="metricVerdictPct" class="text-4xl font-extrabold text-rose-500 mt-1">0%</span>
+                    <span class="text-xs text-slate-400 mt-1">of all unit call outliers</span>
+                </div>
+            </div>
+
+            <!-- Dashboard Stats Grid -->
+            <section class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <!-- Outliers 3-5m -->
+                <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 flex flex-col justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">3 to 5m Outliers</span>
+                        <span class="text-3xl font-extrabold text-slate-900 mt-1 block" id="statS2Total">0</span>
+                        <div class="mt-2 flex items-center text-xs">
+                            <span class="font-bold text-rose-500" id="statS2DeclinePct">0%</span>
+                            <span class="text-slate-500 ml-1">had at least one decline</span>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-100 mt-4 pt-3 flex items-center justify-between text-xs text-slate-500">
+                        <span>Total Declines Incurred:</span>
+                        <span class="font-semibold text-slate-800" id="statS2DeclineCount">0</span>
+                    </div>
+                </div>
+
+                <!-- Outliers >5m -->
+                <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 flex flex-col justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">More Than 5m Outliers</span>
+                        <span class="text-3xl font-extrabold text-slate-900 mt-1 block" id="statS3Total">0</span>
+                        <div class="mt-2 flex items-center text-xs">
+                            <span class="font-bold text-rose-500" id="statS3DeclinePct">0%</span>
+                            <span class="text-slate-500 ml-1">had at least one decline</span>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-100 mt-4 pt-3 flex items-center justify-between text-xs text-slate-500">
+                        <span>Total Declines Incurred:</span>
+                        <span class="font-semibold text-slate-800" id="statS3DeclineCount">0</span>
+                    </div>
+                </div>
+
+                <!-- Total Combined Outliers -->
+                <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 flex flex-col justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Combined Outliers</span>
+                        <span class="text-3xl font-extrabold text-indigo-900 mt-1 block" id="statCombTotal">0</span>
+                        <div class="mt-2 flex items-center text-xs">
+                            <span class="font-bold text-rose-600" id="statCombDeclinePct">0%</span>
+                            <span class="text-slate-500 ml-1">had &ge; 1 decline event</span>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-100 mt-4 pt-3 flex items-center justify-between text-xs text-slate-500">
+                        <span>Combined Decline Volume:</span>
+                        <span class="font-semibold text-slate-800" id="statCombDeclineCount">0</span>
+                    </div>
+                </div>
+
+                <!-- Average Declines Impact -->
+                <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-6 flex flex-col justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Average Declines / Call</span>
+                        <span class="text-3xl font-extrabold text-slate-900 mt-1 block" id="statAvgDeclines">0.0</span>
+                        <div class="mt-2 text-xs text-slate-500 flex items-center">
+                            <span>Maximum recorded: </span>
+                            <span class="font-bold text-rose-600 ml-1" id="statMaxDeclines">0</span>
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-100 mt-4 pt-3 flex items-center justify-between text-xs text-slate-500">
+                        <span>Impact of declines on delay:</span>
+                        <span class="font-semibold text-amber-600">High Severity</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB CONTAINER FOR ADVANCED DEEP DIVE -->
+            <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="flex border-b border-slate-100 bg-slate-50/50 p-2 gap-2">
+                    <button onclick="switchTab('tabDecliners')" id="btnTabDecliners" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-bold text-slate-600 transition-all hover:text-slate-900 active">
+                        Decliners Profiling Desk
+                    </button>
+                    <button onclick="switchTab('tabRiskFactors')" id="btnTabRiskFactors" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-bold text-slate-600 transition-all hover:text-slate-900">
+                        Call Risk & Types
+                    </button>
+                </div>
+
+                <!-- TAB 1: DECLINERS PROFILING DESK -->
+                <div id="tabDecliners" class="tab-content p-6 space-y-8">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <!-- Frequency Plot Top 25 -->
+                        <div class="lg:col-span-7 space-y-4">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900 flex items-center">
+                                    <svg class="w-4 h-4 text-rose-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                                    Frequency Distribution of the Top 25 Decliners
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-1">Identification of consoles, extensions, or staff members executing the active "Decline" button command during outliers.</p>
+                            </div>
+                            
+                            <!-- Custom HTML Bar Chart for Top 25 Decliners -->
+                            <div class="bg-slate-50 rounded-xl p-4 border border-slate-100 max-h-[550px] overflow-y-auto space-y-3.5" id="declinePlotContainer">
+                                <p class="text-xs text-slate-400 text-center py-16">Upload your Excel Master Workbook to plot the Top 25 decliners in real-time.</p>
+                            </div>
+                        </div>
+
+                        <!-- Data Analysis & Pareto Analytics -->
+                        <div class="lg:col-span-5 space-y-6">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900">Statistical Profiling & Concentration Analysis</h3>
+                                <p class="text-xs text-slate-500 mt-1">In-depth mathematical modeling and structural explanations of clinical behaviors.</p>
+                            </div>
+
+                            <!-- Pareto Rule Gauge -->
+                            <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-5 border border-indigo-100">
+                                <span class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Pareto Concentration</span>
+                                <h4 class="font-bold text-slate-900 text-sm mt-2">The 80/20 Concentration Metric</h4>
+                                <p class="text-xs text-slate-600 mt-1 leading-relaxed" id="paretoText">
+                                    Analyze concentration to see if a small subset of consoles or badges accounts for the majority of rejections.
+                                </p>
+                                <div class="mt-4 flex items-center gap-4">
+                                    <div class="p-3 bg-white rounded-lg border border-indigo-100 shadow-2xs text-center min-w-24">
+                                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Top 5 Decliners</span>
+                                        <span class="text-xl font-extrabold text-indigo-900 block mt-0.5" id="paretoTop5Pct">0.0%</span>
+                                    </div>
+                                    <div class="text-xs text-slate-600">
+                                        <span class="font-bold block text-slate-800">Operational Target:</span>
+                                        Addressing issues with these top 5 sources will resolve a large portion of responsiveness outliers.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Top Affected Assignments -->
+                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                                <div class="bg-slate-50 border-b border-slate-100 px-4 py-3">
+                                    <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider">Top 25 Assigned Staff on Impacted Calls</h4>
+                                </div>
+                                <div class="p-4 max-h-[250px] overflow-y-auto">
+                                    <table class="min-w-full text-xs text-left">
+                                        <thead>
+                                            <tr class="border-b border-slate-100 text-slate-400 font-semibold">
+                                                <th class="pb-2">Assigned Staff</th>
+                                                <th class="pb-2 text-right">Outliers Impacted</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="assignedStaffTableBody" class="divide-y divide-slate-50">
+                                            <tr>
+                                                <td class="py-2 text-slate-400 italic">Waiting for data...</td>
+                                                <td></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Clinical Quality Improvement (QI) Analysis Recommendations -->
+                    <div class="border-t border-slate-100 pt-8">
+                        <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center">
+                            <svg class="w-4 h-4 text-emerald-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                            Root Cause QI Recommendations for Nurse Manager (4 Clarke)
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="bg-slate-50 p-5 rounded-xl border border-slate-100">
+                                <h5 class="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500 mr-2"></span>
+                                    1. Handover & Shift Gaps
+                                </h5>
+                                <p class="text-xs text-slate-600 mt-2 leading-relaxed">
+                                    Outliers are highly correlated with transition periods (Shift Change, Lunch coverage). During these periods, coverage phones ring repeatedly, and busy staff active-decline requests. Re-evaluate coverage configurations during transitions.
+                                </p>
+                            </div>
+                            <div class="bg-slate-50 p-5 rounded-xl border border-slate-100">
+                                <h5 class="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 mr-2"></span>
+                                    2. Rauland Assignment Gaps
+                                </h5>
+                                <p class="text-xs text-slate-600 mt-2 leading-relaxed">
+                                    If calls are routed to staff who are not assigned to that patient, they will press decline. Perform an daily audit of the Rauland Borg system to verify companion phone mappings.
+                                </p>
+                            </div>
+                            <div class="bg-slate-50 p-5 rounded-xl border border-slate-100">
+                                <h5 class="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2"></span>
+                                    3. Locator Badge Gaps
+                                </h5>
+                                <p class="text-xs text-slate-600 mt-2 leading-relaxed">
+                                    When staff respond to calls without wearing their locator badges, the system cannot automatically cancel the call. The clinician may manually press "Decline" on the phone or wall console to stop the alarm while they provide care. Ensure staff wear their badges.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: CALL RISK & TYPES -->
+                <div id="tabRiskFactors" class="tab-content p-6 hidden space-y-6">
+                    <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        
+                        <!-- Decline Count Distribution (Custom Bar Chart) -->
+                        <div class="bg-white rounded-2xl border border-slate-100 p-6">
+                            <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center">
+                                <svg class="w-4 h-4 text-slate-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.003 9.003 0 1020.945 13H11V3.055z"></path></svg>
+                                Frequency Distribution of Decline Actions on Outliers
+                            </h3>
+                            <p class="text-xs text-slate-500 mb-6">How many times are calls actively declined before staff arrive?</p>
+                            <div class="space-y-4" id="distributionBars">
+                                <p class="text-sm text-slate-400 text-center py-8">Processing distribution...</p>
+                            </div>
+                        </div>
+
+                        <!-- Call Types Most At-Risk -->
+                        <div class="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col justify-between">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center">
+                                    <svg class="w-4 h-4 text-slate-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                    High-Risk Call Types Analysis
+                                </h3>
+                                <p class="text-xs text-slate-500 mb-6">Which call classifications suffer from active declines leading to delays?</p>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full text-xs">
+                                        <thead>
+                                            <tr class="border-b border-slate-100 text-slate-400 font-semibold text-left">
+                                                <th class="pb-2">Call Type</th>
+                                                <th class="pb-2 text-center">Outliers</th>
+                                                <th class="pb-2 text-center">Calls with Declines</th>
+                                                <th class="pb-2 text-right">Decline Prevalence</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="riskTableBody" class="divide-y divide-slate-50">
+                                            <!-- Dynamic rows -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-500 flex items-center">
+                                <svg class="w-4 h-4 text-indigo-500 mr-1.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                Focus educational or staffing intervention on the highest prevalence activities above.
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </section>
+
+            <!-- Export Center -->
+            <section class="bg-indigo-50 rounded-2xl border border-indigo-100 p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center">
+                    <div class="p-3 bg-indigo-600 text-white rounded-xl mr-4 flex-shrink-0">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-indigo-900 text-sm">Download Updated Datasets</h4>
+                        <p class="text-xs text-indigo-700 mt-1">Export your processed data with updated decline counts, timestamps and timeline logs back into a beautiful native multi-sheet Excel file!</p>
+                    </div>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                    <button id="btnDownloadExcel" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all text-center flex items-center justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Export Master Excel Workbook (.xlsx)
+                    </button>
+                </div>
+            </section>
+
+            <!-- Interactive Tables & Call Inspector -->
+            <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="border-b border-slate-100 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Traceback Inspector & Verification Desk</h3>
+                        <p class="text-xs text-slate-500 mt-1">Audit individual events, view chronological event logs, and verify the traceback engine's outputs.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <select id="sheetSelector" class="bg-white border border-slate-200 text-xs font-semibold rounded-lg px-3 py-2 text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="sheet2">Sheet 2 (3 - 5 min Outliers)</option>
+                            <option value="sheet3" selected>Sheet 3 (&gt;5 min Outliers)</option>
+                        </select>
+                        <input type="text" id="tableSearch" placeholder="Search Room (e.g. 4441)..." class="bg-white border border-slate-200 text-xs rounded-lg px-3 py-2 text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 w-44 md:w-56">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 min-h-[500px]">
+                    
+                    <!-- Table List -->
+                    <div class="lg:col-span-7 border-r border-slate-100 overflow-y-auto max-h-[600px]">
+                        <table class="min-w-full text-xs text-left">
+                            <thead class="bg-slate-50 text-slate-400 font-semibold sticky top-0 border-b border-slate-100">
+                                <tr>
+                                    <th class="px-4 py-3">Date</th>
+                                    <th class="px-4 py-3">Room</th>
+                                    <th class="px-4 py-3">Call Type</th>
+                                    <th class="px-4 py-3 text-center">Outlier Time</th>
+                                    <th class="px-4 py-3 text-center">Declines</th>
+                                    <th class="px-4 py-3 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="outliersTableBody" class="divide-y divide-slate-100">
+                                <!-- Dynamic records -->
+                            </tbody>
+                        </table>
+                        <div id="noDataMsg" class="hidden text-center py-16 text-slate-400">
+                            No matching records found. Try adjusting search queries.
+                        </div>
+                    </div>
+
+                    <!-- Individual Interactive Log Inspector (The Manual Ctrl+F Simulator) -->
+                    <div class="lg:col-span-5 bg-slate-900 text-slate-100 p-6 overflow-y-auto max-h-[600px] flex flex-col justify-between">
+                        <div id="inspectorEmptyState" class="h-full flex flex-col items-center justify-center text-center text-slate-500 py-16">
+                            <svg class="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122m15.556-3.535l2.122 2.122M14 1a1 1 0 011 1v3a1 1 0 11-2 0V2a1 1 0 011-1z"></path></svg>
+                            <h4 class="font-semibold text-slate-300 text-sm">Select an Outlier Record</h4>
+                            <p class="text-xs px-8 mt-1">Click "Inspect Timeline" on any row in the left-hand table to simulate your Excel Ctrl+F trace-back and inspect every raw event sequence.</p>
+                        </div>
+
+                        <div id="inspectorMain" class="hidden space-y-6">
+                            <!-- Selected Header -->
+                            <div class="border-b border-slate-800 pb-4">
+                                <div class="flex items-center justify-between">
+                                    <span class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold px-2 py-0.5 rounded uppercase" id="inspectCallType">PATIENT CALL</span>
+                                    <span class="text-[10px] font-semibold text-slate-400" id="inspectDate">5/1/2026</span>
+                                </div>
+                                <h3 class="text-lg font-bold text-white mt-1">Room <span id="inspectRoom">4441 - 1</span></h3>
+                                <div class="grid grid-cols-2 gap-4 mt-3 text-[11px]">
+                                    <div class="bg-slate-800/50 p-2.5 rounded-lg border border-slate-800">
+                                        <span class="text-slate-400 block">Outlier Duration:</span>
+                                        <span class="font-bold text-white text-xs mt-0.5 block" id="inspectDuration">00:03:20</span>
+                                    </div>
+                                    <div class="bg-slate-800/50 p-2.5 rounded-lg border border-slate-800">
+                                        <span class="text-slate-400 block">Staff Arrived At:</span>
+                                        <span class="font-bold text-emerald-400 text-xs mt-0.5 block" id="inspectArrivedTime">1:03:15 PM</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Timeline list -->
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Chronological Traceback (Sheet 1 Logs)</h4>
+                                <div class="relative pl-6 border-l-2 border-slate-800 space-y-4" id="timelineList">
+                                    <!-- Dynamic timeline logs -->
+                                </div>
+                            </div>
+
+                            <!-- Verdict summary -->
+                            <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-800 text-xs" id="inspectVerdictContainer">
+                                <p class="font-bold text-white mb-1 flex items-center">
+                                    <span class="w-2 h-2 rounded-full bg-rose-500 mr-2"></span>
+                                    Verification Verdict:
+                                </p>
+                                <p class="text-slate-300 leading-relaxed" id="inspectVerdictText"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 border-t border-slate-800 text-slate-400 py-12 mt-16 text-center text-xs">
+        <p class="font-bold text-slate-300 uppercase tracking-widest mb-1">4 Clarke Care Quality Assurance Engine</p>
+        <p>&copy; 2026 Baptist Hospital of Miami - Clinical Performance Dashboard. All rights reserved.</p>
+    </footer>
+
+    <!-- Global JS Engine -->
+    <script>
+        // Global variables holding parsed spreadsheet values
+        let sheet1Data = [];
+        let sheet2Data = [];
+        let sheet3Data = [];
+        let sheet1Name = "May 1-31";
+        let sheet2Name = "3 minutes up to 459 min";
+        let sheet3Name = "More than 5 Minutes";
+        
+        let sheet1Indexed = {}; // Key: "std_date|std_room" -> array of events
+        let processedSheet2 = [];
+        let processedSheet3 = [];
+        let combinedResults = [];
+        let allDeclineEvents = []; // Master array of individual decline events
+
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            // Remove active classes
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            // Show target
+            document.getElementById(tabId).classList.remove('hidden');
+            // Add active class
+            if(tabId === 'tabDecliners') document.getElementById('btnTabDecliners').classList.add('active');
+            if(tabId === 'tabRiskFactors') document.getElementById('btnTabRiskFactors').classList.add('active');
+        }
+
+        // DOM elements
+        const loadStatus = document.getElementById('loadStatus');
+        const loaderPrompt = document.getElementById('loaderPrompt');
+        const btnAutoLoad = document.getElementById('btnAutoLoad');
+        const spinnerAuto = document.getElementById('spinnerAuto');
+        const dashboardView = document.getElementById('dashboardView');
+        const fileMasterExcel = document.getElementById('fileMasterExcel');
+        const masterExcelStatus = document.getElementById('masterExcelStatus');
+        
+        // Manual upload listeners (CSVs)
+        document.getElementById('fileSheet1').addEventListener('change', (e) => handleManualCSV(e, 1));
+        document.getElementById('fileSheet2').addEventListener('change', (e) => handleManualCSV(e, 2));
+        document.getElementById('fileSheet3').addEventListener('change', (e) => handleManualCSV(e, 3));
+
+        // Excel Native Upload Listener
+        fileMasterExcel.addEventListener('change', handleMasterExcel);
+
+        // Auto load listener
+        btnAutoLoad.addEventListener('click', attemptWorkspaceAutoload);
+
+        // Core parsing standardizations
+        function standardizeDate(dStr) {
+            if (!dStr) return "";
+            dStr = String(dStr).trim();
+            const parts = dStr.split('/');
+            if (parts.length === 3) {
+                const m = parseInt(parts[0], 10).toString();
+                const d = parseInt(parts[1], 10).toString();
+                const y = parts[2];
+                return `${m}/${d}/${y}`;
+            }
+            return dStr;
+        }
+
+        function standardizeRoom(rStr) {
+            if (!rStr) return "";
+            return String(rStr).trim().replace(/\s+/g, ' ');
+        }
+
+        function parseDuration(tStr) {
+            if (!tStr) return null;
+            tStr = String(tStr).trim();
+            
+            // Check if SheetJS loaded this as a decimal fraction of a day (common for Excel times)
+            if (!isNaN(tStr) && parseFloat(tStr) < 1.0) {
+                const totalSeconds = Math.round(parseFloat(tStr) * 86400);
+                return totalSeconds;
+            }
+
+            const parts = tStr.split(':');
+            try {
+                if (parts.length === 3) {
+                    return parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseInt(parts[2], 10);
+                } else if (parts.length === 2) {
+                    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+                }
+            } catch (e) {}
+            return null;
+        }
+
+        function formatSeconds(secVal) {
+            if (secVal === null || isNaN(secVal)) return "N/A";
+            const hrs = Math.floor(secVal / 3600);
+            const mins = Math.floor((secVal % 3600) / 60);
+            const secs = secVal % 60;
+            return [
+                hrs.toString().padStart(2, '0'),
+                mins.toString().padStart(2, '0'),
+                secs.toString().padStart(2, '0')
+            ].join(':');
+        }
+
+        // Native Master Excel file parsing (.xlsx / .xls)
+        function handleMasterExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            loadStatus.innerText = "Reading Excel workbook...";
+            loadStatus.className = "inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 animate-pulse";
+            
+            masterExcelStatus.innerText = `Loading '${file.name}'...`;
+            masterExcelStatus.classList.remove('hidden');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    let foundRaw = false;
+                    let foundS2 = false;
+                    let foundS3 = false;
+
+                    workbook.SheetNames.forEach(name => {
+                        const ws = workbook.Sheets[name];
+                        const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+                        if (rows.length === 0) return;
+
+                        const firstRowKeys = Object.keys(rows[0]);
+
+                        if (firstRowKeys.includes("Activity 2") || firstRowKeys.includes("Response Time")) {
+                            sheet1Data = rows;
+                            sheet1Name = name;
+                            foundRaw = true;
+                        } 
+                        else if (firstRowKeys.includes("Time") || firstRowKeys.includes("Call Type")) {
+                            const lowerName = name.toLowerCase();
+                            if (lowerName.includes("3") || lowerName.includes("up to") || lowerName.includes("459")) {
+                                sheet2Data = rows;
+                                sheet2Name = name;
+                                foundS2 = true;
+                            } else if (lowerName.includes("5") || lowerName.includes("more than") || lowerName.includes("greater")) {
+                                sheet3Data = rows;
+                                sheet3Name = name;
+                                foundS3 = true;
+                            } else {
+                                if (!foundS2) {
+                                    sheet2Data = rows;
+                                    sheet2Name = name;
+                                    foundS2 = true;
+                                } else {
+                                    sheet3Data = rows;
+                                    sheet3Name = name;
+                                    foundS3 = true;
+                                }
+                            }
+                        }
+                    });
+
+                    if (!foundRaw && workbook.SheetNames.length > 0) {
+                        alert("Auto-detection of sheet categories from Excel headers was partially inconclusive. Attempting to load using index order (Hypotheses, Raw Logs, 3-5m Outliers, >5m Outliers). Please verify outputs.");
+                        
+                        sheet1Data = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[1] || ''], { defval: "" });
+                        sheet2Data = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[2] || ''], { defval: "" });
+                        sheet3Data = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[3] || ''], { defval: "" });
+                    }
+
+                    if (sheet1Data.length === 0 || sheet2Data.length === 0 || sheet3Data.length === 0) {
+                        throw new Error("Unable to identify the 3 mandatory data sheets within your Excel file. Ensure all sheets are present in the uploaded workbook.");
+                    }
+
+                    masterExcelStatus.innerHTML = `
+                        <span class="text-emerald-600 font-bold">Successfully Parsed Excel Workbook!</span><br>
+                        📊 <strong>Raw Logs (${sheet1Name}):</strong> ${sheet1Data.length} events<br>
+                        ⏱️ <strong>3-5m Outliers (${sheet2Name}):</strong> ${sheet2Data.length} records<br>
+                        🚨 <strong>>5m Outliers (${sheet3Name}):</strong> ${sheet3Data.length} records
+                    `;
+                    masterExcelStatus.className = "text-xs text-slate-700 bg-emerald-50 p-3 rounded-lg border border-emerald-100 mt-3 leading-relaxed";
+
+                    runDataPipeline();
+
+                } catch (err) {
+                    console.error(err);
+                    masterExcelStatus.innerText = "Error: " + err.message;
+                    masterExcelStatus.className = "text-xs text-rose-600 bg-rose-50 p-3 rounded-lg border border-rose-100 mt-3";
+                    loadStatus.innerText = "Excel parsing failed.";
+                    loadStatus.className = "inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-800";
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Auto loader via Workspace HTTP Fetch requests for CSVs
+        async function attemptWorkspaceAutoload() {
+            spinnerAuto.classList.remove('hidden');
+            btnAutoLoad.disabled = true;
+            loadStatus.innerText = "Accessing workspace files...";
+            
+            const fileNames = {
+                sheet1: '4 Clarke Staff Responsiveness Hypotheses Testing May 2026.xlsx - May 1-31.csv',
+                sheet2: '4 Clarke Staff Responsiveness Hypotheses Testing May 2026.xlsx - 3 minutes up to 459 min.csv',
+                sheet3: '4 Clarke Staff Responsiveness Hypotheses Testing May 2026.xlsx - More than 5 Minutes.csv'
+            };
+
+            try {
+                const fetchAndParse = async (url) => {
+                    const response = await fetch(`./${encodeURIComponent(url)}`);
+                    if (!response.ok) throw new Error(`Workspace file fetch failed for ${url}`);
+                    const csvText = await response.text();
+                    return new Promise((resolve) => {
+                        Papa.parse(csvText, {
+                            header: true,
+                            skipEmptyLines: true,
+                            complete: (res) => resolve(res.data)
+                        });
+                    });
+                };
+
+                loadStatus.innerText = "Parsing Sheet 1 (Raw Logs)...";
+                sheet1Data = await fetchAndParse(fileNames.sheet1);
+                document.getElementById('labelSheet1').innerText = "Loaded successfully (Auto)";
+                document.getElementById('labelSheet1').className = "text-[10px] text-emerald-600 font-semibold mt-2 truncate";
+
+                loadStatus.innerText = "Parsing Sheet 2 (3-5m)...";
+                sheet2Data = await fetchAndParse(fileNames.sheet2);
+                document.getElementById('labelSheet2').innerText = "Loaded successfully (Auto)";
+                document.getElementById('labelSheet2').className = "text-[10px] text-emerald-600 font-semibold mt-2 truncate";
+
+                loadStatus.innerText = "Parsing Sheet 3 (>5m)...";
+                sheet3Data = await fetchAndParse(fileNames.sheet3);
+                document.getElementById('labelSheet3').innerText = "Loaded successfully (Auto)";
+                document.getElementById('labelSheet3').className = "text-[10px] text-emerald-600 font-semibold mt-2 truncate";
+
+                runDataPipeline();
+            } catch (error) {
+                console.error(error);
+                loadStatus.innerText = "Auto-load failed. Use manual selections.";
+                loadStatus.className = "inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-800";
+                spinnerAuto.classList.add('hidden');
+                btnAutoLoad.disabled = false;
+                alert("Could not load the workspace CSV files automatically. No problem! Please click the 'Select .xlsx Workbook' button above to upload your excel spreadsheet file directly.");
+            }
+        }
+
+        // Manual CSV fallback upload processor
+        function handleManualCSV(event, sheetNum) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const labelId = `labelSheet${sheetNum}`;
+            document.getElementById(labelId).innerText = "Loading " + file.name + "...";
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if (sheetNum === 1) sheet1Data = results.data;
+                    else if (sheetNum === 2) sheet2Data = results.data;
+                    else if (sheetNum === 3) sheet3Data = results.data;
+
+                    document.getElementById(labelId).innerText = "Loaded successfully: " + results.data.length + " rows";
+                    document.getElementById(labelId).className = "text-[10px] text-emerald-600 font-semibold mt-2 truncate";
+
+                    if (sheet1Data.length > 0 && sheet2Data.length > 0 && sheet3Data.length > 0) {
+                        runDataPipeline();
+                    }
+                }
+            });
+        }
+
+        // Core Retroactive Traceback Engine
+        function runDataPipeline() {
+            loadStatus.innerText = "Building Indices...";
+            loadStatus.className = "inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 animate-pulse";
+            
+            allDeclineEvents = []; // reset decline stats array
+            
+            // 1. Index Sheet 1 (Raw Logs)
+            sheet1Indexed = {};
+            sheet1Data.forEach((row, idx) => {
+                const d = standardizeDate(row['Date']);
+                const r = standardizeRoom(row['Room']);
+                if (!d || !r) return;
+
+                const key = `${d}|${r}`;
+                if (!sheet1Indexed[key]) {
+                    sheet1Indexed[key] = [];
+                }
+
+                const act = row['Activity'] || "";
+                const act2 = row['Activity 2'] || "";
+                const resp = row['Response Time'] || "";
+                const ext = row['Extension'] || "";
+                let sec = null;
+                
+                if (act.toLowerCase().includes('total time')) {
+                    sec = parseDuration(resp);
+                }
+
+                sheet1Indexed[key].push({
+                    index: idx,
+                    date: d,
+                    room: r,
+                    activity: act,
+                    activity2: act2,
+                    responseTime: resp,
+                    extension: ext,
+                    secDuration: sec,
+                    original: row
+                });
+            });
+
+            // 2. Process Outliers Sheet 2 and Sheet 3
+            loadStatus.innerText = "Processing Tracebacks...";
+            processedSheet2 = runAnalysisOnSheet(sheet2Data, "Sheet 2");
+            processedSheet3 = runAnalysisOnSheet(sheet3Data, "Sheet 3");
+            combinedResults = [...processedSheet2.map(x => ({ ...x, source: 'sheet2' })), ...processedSheet3.map(x => ({ ...x, source: 'sheet3' }))];
+
+            // 3. Render Dashboard Metrics and tabs
+            renderDashboard();
+            
+            // 4. Update view states
+            loadStatus.innerText = "Completed Traceback Engine";
+            loadStatus.className = "inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800";
+            loaderPrompt.className = "hidden";
+            dashboardView.classList.remove('hidden');
+        }
+
+        function runAnalysisOnSheet(outlierData, label) {
+            return outlierData.map(outlier => {
+                const oDate = standardizeDate(outlier['Date']);
+                const oRoom = standardizeRoom(outlier['Room']);
+                const oTimeStr = outlier['Time'] || "";
+                
+                let displayTime = oTimeStr;
+                let oDuration = parseDuration(oTimeStr);
+
+                if (oDuration !== null && !isNaN(oDuration)) {
+                    displayTime = formatSeconds(oDuration);
+                }
+
+                let matched = false;
+                let declineCount = 0;
+                let declineDetails = [];
+                let staffArrivedTime = "N/A";
+                let callEvents = [];
+                let tracebackStatus = "Unmatched";
+                let assignedStaff = "Unassigned";
+
+                if (oDate && oRoom && oDuration !== null) {
+                    const key = `${oDate}|${oRoom}`;
+                    const roomEvents = sheet1Indexed[key] || [];
+
+                    // Locate 'Total Time' matching duration (exact or tolerance <= 2s)
+                    let anchorIdx = -1;
+                    for (let i = 0; i < roomEvents.length; i++) {
+                        const ev = roomEvents[i];
+                        if (ev.secDuration !== null && Math.abs(ev.secDuration - oDuration) <= 2) {
+                            anchorIdx = i;
+                            break;
+                        }
+                    }
+
+                    if (anchorIdx !== -1) {
+                        matched = true;
+                        tracebackStatus = "Matched Successfully";
+
+                        // Retroactive scan backwards
+                        const matchedEvents = [];
+                        for (let i = anchorIdx - 1; i >= 0; i--) {
+                            const ev = roomEvents[i];
+                            if (ev.activity.toLowerCase().includes('total time')) {
+                                break;
+                            }
+                            matchedEvents.push(ev);
+                        }
+                        matchedEvents.reverse();
+                        callEvents = matchedEvents;
+
+                        // Find who was assigned to this room during this call (from notifications)
+                        for (let i = 0; i < callEvents.length; i++) {
+                            const ev = callEvents[i];
+                            const act = ev.activity.toLowerCase();
+                            const act2 = ev.activity2;
+                            if (act.includes('notified:') && act2 && !act2.toLowerCase().includes('console') && !act2.toLowerCase().includes('decline') && act2.includes(',')) {
+                                assignedStaff = act2.trim();
+                            }
+                        }
+
+                        // Count declines & resolve specific names
+                        callEvents.forEach(ev => {
+                            const act = ev.activity.toLowerCase();
+                            const act2 = ev.activity2.toLowerCase();
+
+                            const isDecline = act.includes('decline') || act2.includes('decline');
+                            ev.isDecline = isDecline;
+
+                            if (isDecline) {
+                                declineCount++;
+                                declineDetails.push(`[${ev.responseTime}] ${ev.activity} / ${ev.activity2}`.trim().replace(/ \/ $/, ''));
+
+                                // Log decline profile details globally
+                                let declinerName = "General / Console Allocation";
+                                let role = "Console";
+
+                                // Parse name from Activity 2
+                                if (ev.activity2 && ev.activity2.includes(",")) {
+                                    declinerName = ev.activity2.trim();
+                                    role = "Staff Phone";
+                                } else if (ev.activity.includes(",")) {
+                                    declinerName = ev.activity.trim();
+                                    role = "Staff Phone";
+                                } else if (act.includes('cp') || act2.includes('cp')) {
+                                    declinerName = "Clinical Partner (CP) Console";
+                                    role = "CP";
+                                } else if (act.includes('rn') || act2.includes('rn')) {
+                                    declinerName = "Registered Nurse (RN) Console";
+                                    role = "RN";
+                                } else if (act.includes('resource') || act2.includes('resource')) {
+                                    declinerName = "Resource Console";
+                                    role = "Resource";
+                                } else if (ev.activity2) {
+                                    declinerName = ev.activity2.trim();
+                                }
+
+                                allDeclineEvents.push({
+                                    date: oDate,
+                                    room: oRoom,
+                                    decliner: declinerName,
+                                    role: role,
+                                    assignedStaff: assignedStaff,
+                                    source: label,
+                                    extension: ev.extension || "N/A"
+                                });
+                            }
+
+                            if (act.includes('staff arrived') || act2.includes('staff arrived') || act.includes('arrived') || act2.includes('arrived')) {
+                                staffArrivedTime = ev.responseTime;
+                            }
+                        });
+
+                        if (staffArrivedTime === "N/A") {
+                            const ans = callEvents.find(ev => ev.activity.toLowerCase().includes('answered') || ev.activity2.toLowerCase().includes('answered'));
+                            if (ans) {
+                                staffArrivedTime = `Answered @ ${ans.responseTime}`;
+                            }
+                        }
+                    } else {
+                        tracebackStatus = "Anchor Row Not Found";
+                    }
+                } else {
+                    tracebackStatus = "Invalid Outlier Formatting";
+                }
+
+                return {
+                    'Date': outlier['Date'],
+                    'Room': outlier['Room'],
+                    'Call Type': outlier['Call Type'] || "Patient",
+                    'Activity': outlier['Activity'] || "Total Time",
+                    'Time': displayTime,
+                    'Note (Summary for delay, 1 word minimum)': outlier['Note (Summary for delay, 1 word minimum)'] || "",
+                    'Decline Count': matched ? declineCount : "n/a",
+                    'Staff Arrived Time': staffArrivedTime,
+                    'Traceback Log': matched ? (declineDetails.join('; ') || "No declines detected") : "No matching raw log trace found",
+                    'Assigned Staff': assignedStaff,
+                    matched,
+                    tracebackStatus,
+                    rawEventsList: callEvents,
+                    originalObj: outlier
+                };
+            });
+        }
+
+        // Render Dashboard Metrics & Hypotheses Verdicts
+        function renderDashboard() {
+            // S2 statistics
+            const s2Matched = processedSheet2.filter(x => x.matched);
+            const s2WithDeclines = s2Matched.filter(x => typeof x['Decline Count'] === 'number' && x['Decline Count'] > 0);
+            const s2DeclinePct = s2Matched.length > 0 ? (s2WithDeclines.length / s2Matched.length) * 100 : 0;
+            const s2DeclineTotal = s2Matched.reduce((acc, row) => acc + (typeof row['Decline Count'] === 'number' ? row['Decline Count'] : 0), 0);
+
+            document.getElementById('statS2Total').innerText = processedSheet2.length;
+            document.getElementById('statS2DeclinePct').innerText = `${s2DeclinePct.toFixed(1)}%`;
+            document.getElementById('statS2DeclineCount').innerText = s2DeclineTotal;
+
+            // S3 statistics
+            const s3Matched = processedSheet3.filter(x => x.matched);
+            const s3WithDeclines = s3Matched.filter(x => typeof x['Decline Count'] === 'number' && x['Decline Count'] > 0);
+            const s3DeclinePct = s3Matched.length > 0 ? (s3WithDeclines.length / s3Matched.length) * 100 : 0;
+            const s3DeclineTotal = s3Matched.reduce((acc, row) => acc + (typeof row['Decline Count'] === 'number' ? row['Decline Count'] : 0), 0);
+
+            document.getElementById('statS3Total').innerText = processedSheet3.length;
+            document.getElementById('statS3DeclinePct').innerText = `${s3DeclinePct.toFixed(1)}%`;
+            document.getElementById('statS3DeclineCount').innerText = s3DeclineTotal;
+
+            // Combined statistics
+            const combMatched = combinedResults.filter(x => x.matched);
+            const combWithDeclines = combMatched.filter(x => typeof x['Decline Count'] === 'number' && x['Decline Count'] > 0);
+            const combDeclinePct = combMatched.length > 0 ? (combWithDeclines.length / combMatched.length) * 100 : 0;
+            const combDeclineTotal = s2DeclineTotal + s3DeclineTotal;
+
+            document.getElementById('statCombTotal').innerText = combinedResults.length;
+            document.getElementById('statCombDeclinePct').innerText = `${combDeclinePct.toFixed(1)}%`;
+            document.getElementById('statCombDeclineCount').innerText = combDeclineTotal;
+
+            // Averages
+            const avgDeclines = combWithDeclines.length > 0 ? (combDeclineTotal / combWithDeclines.length) : 0;
+            const maxDeclines = combMatched.reduce((max, r) => typeof r['Decline Count'] === 'number' ? Math.max(max, r['Decline Count']) : max, 0);
+
+            document.getElementById('statAvgDeclines').innerText = avgDeclines.toFixed(1);
+            document.getElementById('statMaxDeclines').innerText = maxDeclines;
+            document.getElementById('metricVerdictPct').innerText = `${combDeclinePct.toFixed(0)}%`;
+
+            const hypoText = document.getElementById('hypothesisText');
+            if (combDeclinePct > 50) {
+                hypoText.innerHTML = `<strong>Hypothesis Supported!</strong> In <strong>${combDeclinePct.toFixed(1)}%</strong> of clinical responsiveness outliers, there was at least one active CP or RN call decline recorded in raw log sequences. Outliers are heavily driven by staff pushing active 'decline' buttons on active alert consoles. For calls where declines occurred, the patient waited through an average of <strong>${avgDeclines.toFixed(1)} consecutive call declines</strong> before nursing presence was secured.`;
+                document.getElementById('metricVerdictPct').className = "text-4xl font-extrabold text-rose-500 mt-1";
+            } else {
+                hypoText.innerHTML = `<strong>Hypothesis Partially Supported / Rejected:</strong> Only <strong>${combDeclinePct.toFixed(1)}%</strong> of call outliers contained active CP or RN decline events. The remaining <strong>${(100 - combDeclinePct).toFixed(1)}%</strong> of outliers show zero active declines, meaning staff let the consoles ring without taking actions, had coverage gaps, or experienced delays that are unrelated to active console rejection.`;
+                document.getElementById('metricVerdictPct').className = "text-4xl font-extrabold text-amber-500 mt-1";
+            }
+
+            // Render distribution bars & types
+            renderDistribution(combMatched);
+            renderHighRiskTable(combMatched);
+
+            // NEW: Render Decline Staff Frequencies & Pareto charts
+            renderDeclinersFrequency();
+
+            // Populate table view
+            renderTracebackTable();
+        }
+
+        // Render custom responsive progress bars for decline counts
+        function renderDistribution(matchedRows) {
+            const container = document.getElementById('distributionBars');
+            container.innerHTML = "";
+
+            const total = matchedRows.length;
+            if (total === 0) return;
+
+            const dist = { '0 declines': 0, '1 decline': 0, '2 declines': 0, '3 declines': 0, '4+ declines': 0 };
+            matchedRows.forEach(row => {
+                const count = row['Decline Count'];
+                if (count === 0) dist['0 declines']++;
+                else if (count === 1) dist['1 decline']++;
+                else if (count === 2) dist['2 declines']++;
+                else if (count === 3) dist['3 declines']++;
+                else if (count >= 4) dist['4+ declines']++;
+            });
+
+            Object.keys(dist).forEach(key => {
+                const count = dist[key];
+                const pct = (count / total) * 100;
+                const isDeclineCategory = key !== '0 declines';
+                const barColor = isDeclineCategory ? 'bg-rose-500' : 'bg-slate-400';
+
+                const barHTML = `
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="font-medium ${isDeclineCategory && count > 0 ? 'text-rose-600 font-semibold' : 'text-slate-600'}">${key}</span>
+                            <span class="font-bold text-slate-700">${count} calls (${pct.toFixed(1)}%)</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2.5">
+                            <div class="${barColor} h-2.5 rounded-full" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', barHTML);
+            });
+        }
+
+        // Render Risk breakdown
+        function renderHighRiskTable(matchedRows) {
+            const body = document.getElementById('riskTableBody');
+            body.innerHTML = "";
+
+            const callTypes = {};
+            matchedRows.forEach(row => {
+                const type = row['Call Type'] || "Other";
+                if (!callTypes[type]) {
+                    callTypes[type] = { total: 0, withDeclines: 0 };
+                }
+                callTypes[type].total++;
+                if (row['Decline Count'] > 0) {
+                    callTypes[type].withDeclines++;
+                }
+            });
+
+            const sortedTypes = Object.keys(callTypes).map(type => {
+                const data = callTypes[type];
+                const prevalence = data.total > 0 ? (data.withDeclines / data.total) * 100 : 0;
+                return { type, ...data, prevalence };
+            }).sort((a, b) => b.prevalence - a.prevalence);
+
+            sortedTypes.forEach(row => {
+                const rowHTML = `
+                    <tr class="hover:bg-slate-50">
+                        <td class="py-2.5 font-semibold text-slate-700">${row.type}</td>
+                        <td class="py-2.5 text-center text-slate-600 font-medium">${row.total}</td>
+                        <td class="py-2.5 text-center text-rose-600 font-bold">${row.withDeclines}</td>
+                        <td class="py-2.5 text-right font-bold text-slate-800">${row.prevalence.toFixed(1)}%</td>
+                    </tr>
+                `;
+                body.insertAdjacentHTML('beforeend', rowHTML);
+            });
+        }
+
+        // NEW: Render Decliners Frequency & Concentration Analyses
+        function renderDeclinersFrequency() {
+            const plotContainer = document.getElementById('declinePlotContainer');
+            const paretoText = document.getElementById('paretoText');
+            const paretoTop5Pct = document.getElementById('paretoTop5Pct');
+            const assignedStaffTableBody = document.getElementById('assignedStaffTableBody');
+
+            plotContainer.innerHTML = "";
+            assignedStaffTableBody.innerHTML = "";
+
+            if (allDeclineEvents.length === 0) {
+                plotContainer.innerHTML = `<p class="text-xs text-slate-400 text-center py-16">No active decline events were detected in the raw logs for these outliers. Excellent job!</p>`;
+                paretoText.innerText = "No active decline events traced. The system delays are passive, meaning calls are taking longer due to delayed physical responsiveness rather than active reject commands.";
+                paretoTop5Pct.innerText = "0.0%";
+                assignedStaffTableBody.innerHTML = `<tr><td class="py-2 text-slate-400 italic">No decline events traced</td><td></td></tr>`;
+                return;
+            }
+
+            // 1. Calculate Top 25 Decliners (Activity 2 or Name)
+            const declinerCounts = {};
+            allDeclineEvents.forEach(e => {
+                declinerCounts[e.decliner] = (declinerCounts[e.decliner] || 0) + 1;
+            });
+
+            const sortedDecliners = Object.entries(declinerCounts)
+                .map(([name, val]) => ({ name, val }))
+                .sort((a, b) => b.val - a.val);
+
+            const totalDeclineCount = allDeclineEvents.length;
+
+            // Plot Top 25 Decliners
+            const top25 = sortedDecliners.slice(0, 25);
+            top25.forEach((item, index) => {
+                const pct = (item.val / totalDeclineCount) * 100;
+                
+                // Color coordination based on names
+                let barColorClass = "bg-slate-500";
+                if (item.name.toLowerCase().includes("cp") || item.name.toLowerCase().includes("clinical partner")) {
+                    barColorClass = "bg-indigo-500 hover:bg-indigo-600";
+                } else if (item.name.toLowerCase().includes("rn") || item.name.toLowerCase().includes("registered nurse")) {
+                    barColorClass = "bg-rose-500 hover:bg-rose-600";
+                } else if (item.name.toLowerCase().includes("resource")) {
+                    barColorClass = "bg-amber-500 hover:bg-amber-600";
+                } else if (item.name.includes(",")) {
+                    barColorClass = "bg-emerald-500 hover:bg-emerald-600"; // Specific named staff member
+                }
+
+                const chartRow = `
+                    <div class="flex items-center gap-3">
+                        <span class="w-6 text-[10px] font-bold text-slate-400 text-right">#${index + 1}</span>
+                        <div class="flex-1">
+                            <div class="flex justify-between text-[11px] mb-0.5">
+                                <span class="font-bold text-slate-700 truncate max-w-[280px]">${item.name}</span>
+                                <span class="font-mono text-slate-500">${item.val} rejections (${pct.toFixed(1)}%)</span>
+                            </div>
+                            <div class="w-full bg-slate-200/60 rounded-full h-3">
+                                <div class="${barColorClass} h-3 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                plotContainer.insertAdjacentHTML('beforeend', chartRow);
+            });
+
+            // 2. Calculate Pareto Analysis
+            let top5Sum = 0;
+            const top5 = sortedDecliners.slice(0, 5);
+            top5.forEach(x => top5Sum += x.val);
+            const top5Pct = (top5Sum / totalDeclineCount) * 100;
+
+            paretoTop5Pct.innerText = `${top5Pct.toFixed(1)}%`;
+            if (top5Pct >= 50) {
+                paretoText.innerHTML = `<strong>High Concentration!</strong> The top 5 decliners account for <strong>${top5Pct.toFixed(1)}%</strong> of all active call light rejections on the unit. This proves that call-light responsiveness issues on 4 Clarke are not widespread; they are highly concentrated in a small group of companion devices, specific desk consoles, or individual staff phone lines. Focused counseling or reallocating these assignments will solve the majority of rejections.`;
+            } else {
+                paretoText.innerHTML = `<strong>Distributed Rejections:</strong> The top 5 decliners account for <strong>${top5Pct.toFixed(1)}%</strong> of rejections. Rejections are relatively distributed across multiple devices or team members on 4 Clarke, indicating a wider system or cultural process gap rather than individual outliers.`;
+            }
+
+            // 3. Calculate Top 25 Affected Assignments
+            const assignedCounts = {};
+            allDeclineEvents.forEach(e => {
+                assignedCounts[e.assignedStaff] = (assignedCounts[e.assignedStaff] || 0) + 1;
+            });
+
+            const sortedAssigned = Object.entries(assignedCounts)
+                .map(([name, val]) => ({ name, val }))
+                .sort((a, b) => b.val - a.val);
+
+            const top25Assigned = sortedAssigned.slice(0, 25);
+            top25Assigned.forEach((item, index) => {
+                const assignedRow = `
+                    <tr class="hover:bg-slate-50">
+                        <td class="py-2 font-semibold text-slate-700">
+                            <span class="text-slate-400 font-bold mr-1">#${index+1}</span> ${item.name}
+                        </td>
+                        <td class="py-2 text-right font-bold text-rose-600">${item.val} declines</td>
+                    </tr>
+                `;
+                assignedStaffTableBody.insertAdjacentHTML('beforeend', assignedRow);
+            });
+        }
+
+        // Render Traceback table list
+        const sheetSelector = document.getElementById('sheetSelector');
+        const tableSearch = document.getElementById('tableSearch');
+
+        sheetSelector.addEventListener('change', renderTracebackTable);
+        tableSearch.addEventListener('input', renderTracebackTable);
+
+        function renderTracebackTable() {
+            const selectedSheet = sheetSelector.value;
+            const query = tableSearch.value.toLowerCase().trim();
+            const body = document.getElementById('outliersTableBody');
+            const noDataMsg = document.getElementById('noDataMsg');
+            
+            body.innerHTML = "";
+            
+            const targetData = selectedSheet === 'sheet2' ? processedSheet2 : processedSheet3;
+            
+            const filtered = targetData.filter(row => {
+                const roomMatch = (row['Room'] || "").toLowerCase().includes(query);
+                const typeMatch = (row['Call Type'] || "").toLowerCase().includes(query);
+                const staffMatch = (row['Assigned Staff'] || "").toLowerCase().includes(query);
+                return roomMatch || typeMatch || staffMatch;
+            });
+
+            if (filtered.length === 0) {
+                noDataMsg.classList.remove('hidden');
+                return;
+            } else {
+                noDataMsg.classList.add('hidden');
+            }
+
+            filtered.forEach((row, localIdx) => {
+                const isDecline = row['Decline Count'] > 0;
+                const badgeClass = isDecline ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600';
+                
+                const rowHTML = `
+                    <tr class="hover:bg-slate-50 cursor-pointer transition-colors" onclick="inspectOutlier('${selectedSheet}', ${localIdx})">
+                        <td class="px-4 py-3 text-slate-500">${row['Date']}</td>
+                        <td class="px-4 py-3 font-semibold text-slate-900">${row['Room']}</td>
+                        <td class="px-4 py-3 text-slate-600">${row['Call Type'] || "Patient"}</td>
+                        <td class="px-4 py-3 text-center font-bold text-slate-800">${row['Time']}</td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${badgeClass}">
+                                ${row['Decline Count']}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <button class="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline">
+                                Inspect Timeline
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                body.insertAdjacentHTML('beforeend', rowHTML);
+            });
+        }
+
+        // Active Timeline Audit Logger (Ctrl+F Simulator Panel)
+        function inspectOutlier(sheetKey, localIdx) {
+            const dataSet = sheetKey === 'sheet2' ? processedSheet2 : processedSheet3;
+            const outlier = dataSet[localIdx];
+            
+            if (!outlier) return;
+
+            document.getElementById('inspectorEmptyState').classList.add('hidden');
+            document.getElementById('inspectorMain').classList.remove('hidden');
+
+            document.getElementById('inspectCallType').innerText = (outlier['Call Type'] || "Patient Call") + " LOG";
+            document.getElementById('inspectDate').innerText = outlier['Date'];
+            document.getElementById('inspectRoom').innerText = outlier['Room'];
+            document.getElementById('inspectDuration').innerText = outlier['Time'];
+            document.getElementById('inspectArrivedTime').innerText = outlier['Staff Arrived Time'];
+
+            const listContainer = document.getElementById('timelineList');
+            listContainer.innerHTML = "";
+
+            if (!outlier.matched) {
+                listContainer.innerHTML = `<p class="text-xs text-rose-400 font-medium py-4">Traceback trace failed: ${outlier.tracebackStatus}</p>`;
+                document.getElementById('inspectVerdictText').innerText = "Traceback indexing was unable to link this outlier back to the Sheet 1 raw event streams. Check date and room strings for compliance.";
+                return;
+            }
+
+            // Populate chronological timeline steps
+            outlier.rawEventsList.forEach((ev, i) => {
+                const isDecline = ev.isDecline;
+                const isCallPlaced = ev.activity.toLowerCase().includes('call placed') || ev.activity2.toLowerCase().includes('call placed');
+                const isStaffArrived = ev.activity.toLowerCase().includes('arrived') || ev.activity2.toLowerCase().includes('arrived');
+                
+                let dotColor = "bg-slate-700 border-slate-900";
+                let textColor = "text-slate-300";
+                let activityDesc = `${ev.activity} / ${ev.activity2}`.trim().replace(/ \/ $/, '');
+
+                if (isDecline) {
+                    dotColor = "bg-rose-500 border-rose-950 animate-pulse";
+                    textColor = "text-rose-400 font-bold";
+                } else if (isCallPlaced) {
+                    dotColor = "bg-indigo-400 border-indigo-950";
+                    textColor = "text-indigo-300 font-semibold";
+                    activityDesc = `🔴 ALERT PLACED: ${ev.activity} Call Placed`;
+                } else if (isStaffArrived) {
+                    dotColor = "bg-emerald-400 border-emerald-950";
+                    textColor = "text-emerald-400 font-semibold";
+                    activityDesc = `🟢 STAFF ARRIVED: Resolve event completed`;
+                }
+
+                const itemHTML = `
+                    <div class="relative">
+                        <!-- Bullet dot -->
+                        <span class="absolute -left-[31px] top-1 rounded-full w-4.5 h-4.5 border-2 ${dotColor}"></span>
+                        <div class="flex items-start justify-between text-[11px] gap-4">
+                            <span class="${textColor}">${activityDesc}</span>
+                            <span class="text-slate-500 font-mono flex-shrink-0">${ev.responseTime}</span>
+                        </div>
+                    </div>
+                `;
+                listContainer.insertAdjacentHTML('beforeend', itemHTML);
+            });
+
+            // Summary row (Total Time matching anchor)
+            const anchorHTML = `
+                <div class="relative">
+                    <span class="absolute -left-[31px] top-1 rounded-full w-4.5 h-4.5 border-2 bg-indigo-600 border-indigo-950"></span>
+                    <div class="flex items-start justify-between text-[11px] text-indigo-300 font-bold">
+                        <span>📊 TOTAL BILLABLE ELAPSED TIME (ANCHOR)</span>
+                        <span class="font-mono">${outlier['Time']}</span>
+                    </div>
+                </div>
+            `;
+            listContainer.insertAdjacentHTML('beforeend', anchorHTML);
+
+            // Audit Verdict Card
+            const verdictText = document.getElementById('inspectVerdictText');
+            if (outlier['Decline Count'] > 0) {
+                verdictText.innerHTML = `This outlier of <strong>${outlier['Time']}</strong> was actively driven by <strong>${outlier['Decline Count']} active console rejections ("Decline by CP/RN")</strong>. Assigned Staff on call: <strong>${outlier['Assigned Staff']}</strong>. The first decline sequence took place in the raw logs leading up to completion, forcing the Rauland call light algorithm to re-route calls, triggering delays and lowering unit responsive satisfaction score.`;
+            } else {
+                verdictText.innerHTML = `No 'decline' events were logged in the event timeline. Assigned Staff on call: <strong>${outlier['Assigned Staff']}</strong>. Although this call exceeded responsive standard thresholds (elapsed: <strong>${outlier['Time']}</strong>), the delay was likely caused by physical dispatch latency, lack of available coverage, or a staff locator badge malfunction.`;
+            }
+        }
+
+        // Native Multi-Sheet Excel Workbook Downloader
+        document.getElementById('btnDownloadExcel').addEventListener('click', downloadExcelMaster);
+
+        function downloadExcelMaster() {
+            if (processedSheet2.length === 0 || processedSheet3.length === 0) {
+                alert("Please upload your data file first to generate the updated reports.");
+                return;
+            }
+
+            try {
+                const wb = XLSX.utils.book_new();
+
+                const prepareExcelSheet = (rows) => {
+                    return rows.map(r => {
+                        const newRow = {};
+                        Object.keys(r).forEach(key => {
+                            if (key !== 'matched' && key !== 'tracebackStatus' && key !== 'rawEventsList' && key !== 'originalObj') {
+                                newRow[key] = r[key];
+                            }
+                        });
+                        return newRow;
+                    });
+                };
+
+                const ws1 = XLSX.utils.json_to_sheet(sheet1Data);
+                XLSX.utils.book_append_sheet(wb, ws1, sheet1Name.substring(0, 31));
+
+                const cleanS2 = prepareExcelSheet(processedSheet2);
+                const ws2 = XLSX.utils.json_to_sheet(cleanS2);
+                XLSX.utils.book_append_sheet(wb, ws2, sheet2Name.substring(0, 31));
+
+                const cleanS3 = prepareExcelSheet(processedSheet3);
+                const ws3 = XLSX.utils.json_to_sheet(cleanS3);
+                XLSX.utils.book_append_sheet(wb, ws3, sheet3Name.substring(0, 31));
+
+                XLSX.writeFile(wb, "4_Clarke_Staff_Responsiveness_Hypotheses_Testing_UPDATED.xlsx");
+                
+            } catch (err) {
+                console.error("Workbook generation failed", err);
+                alert("Error during workbook compilation: " + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
